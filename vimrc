@@ -197,10 +197,7 @@ nnoremap <space> za
 "js stuff"
 autocmd FileType javascript setlocal shiftwidth=2 tabstop=2
 
-au BufNewFile,BufRead *.js, *.html, *.css
-    \ set tabstop=2
-    \ set softtabstop=2
-    \ set shiftwidth=2
+au BufNewFile,BufRead *.js,*.html,*.css,*.yaml set tabstop=2 softtabstop=2 shiftwidth=2
 
 set complete+=kspell
 set clipboard=unnamed
