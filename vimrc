@@ -201,3 +201,6 @@ au BufNewFile,BufRead *.js,*.html,*.css,*.yaml set tabstop=2 softtabstop=2 shift
 
 set complete+=kspell
 set clipboard=unnamed
+
+" Automatically change pwd to that of current file
+set autochdir
