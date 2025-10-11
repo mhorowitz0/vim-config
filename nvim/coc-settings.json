@@ -1,0 +1,25 @@
+{
+  "inlayHint.enable": false,
+  "pyright.disableDiagnostics": false,
+
+  "coc.preferences.formatOnSave": false,
+
+  "ruff.lint.enable": true,
+  "ruff.organizeImports": true,
+  "ruff.fixAll": true,
+
+  // Popups only on trigger chars (., ->, :, etc.), not every keystroke
+  "suggest.autoTrigger": "trigger",
+
+  // Make the menu appear a little later + only when meaningful
+  "suggest.minTriggerInputLength": 2,
+  "suggest.noselect": true,
+  "suggest.enablePreselect": false,
+
+  // Optional: use floating menu (some prefer native pum; try toggling this)
+  "suggest.floatEnable": true,
+
+  // --- Added: reduce noisy completion sources ---
+  "coc.source.buffer.enable": false,
+  "coc.source.path.enable": false
+}
