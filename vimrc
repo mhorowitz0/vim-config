@@ -1,114 +1,36 @@
-"vundle
-set nocompatible              " be iMproved, required
-filetype off                  " required
+" --- Basics ---
+set nocompatible
 
-" vim-plug
+" Add Homebrew fzf to runtime path
+set rtp+=/opt/homebrew/opt/fzf
+
+" Use vim-plug
 call plug#begin()
-" set the runtime path to include Vundle and initialize
-"set rtp+=~/.vim/bundle/Vundle.vim
-"call vundle#begin()
-" alternatively, pass a path where Vundle should install plugins
-"call vundle#begin('~/some/path/here')
+  " Git
+  Plug 'tpope/vim-fugitive'
 
-" let Vundle manage Vundle, required
-"Plug 'VundleVim/Vundle.vim'
+  " Filesystem (keep for Vim; Neovim uses nvim-tree)
+  Plug 'scrooloose/nerdtree'
+  Plug 'jistr/vim-nerdtree-tabs'
 
-" The following are examples of different formats supported.
-" Keep Plugin commands between vundle#begin/end.
-" plugin on GitHub repo
-"Plug 'tpope/vim-fugitive'
-" plugin from http://vim-scripts.org/vim/scripts.html
-" Plug 'L9'
-" Git plugin not hosted on GitHub
-"Plug 'git://git.wincent.com/command-t.git'
-" git repos on your local machine (i.e. when working on your own plugin)
-"Plug 'file:///home/gmarik/path/to/plugin'
-" The sparkup vim script is in a subdirectory of this repo called vim.
-" Pass the path to set the runtimepath properly.
-"Plug 'rstacruz/sparkup', {'rtp': 'vim/'}
-" Install L9 and avoid a Naming conflict if you've already installed a
-" different version somewhere else.
-" Plug 'ascenator/L9', {'name': 'newL9'}
+  " Editing niceties
+  Plug 'tpope/vim-surround'
+  Plug 'tpope/vim-commentary'
 
+  " LSP/Completion/Diagnostics for Vim
+  Plug 'neoclide/coc.nvim', {'branch': 'release'}
 
-"git interface
-Plug 'tpope/vim-fugitive'
-"filesystem
-Plug 'scrooloose/nerdtree'
-Plug 'jistr/vim-nerdtree-tabs'
-Plug 'kien/ctrlp.vim' 
+  " Finder (prefer FZF over ctrlp)
+  Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+  Plug 'junegunn/fzf.vim'
 
-"html
-"  isnowfy only compatible with python not python3
-"Plug 'isnowfy/python-vim-instant-markdown'
-"Plug 'jtratner/vim-flavored-markdown'
-"Plug 'suan/vim-instant-markdown'
-"Plug 'nelstrom/vim-markdown-preview'
-"python sytax checker
-Plug 'nvie/vim-flake8'
-"Plug 'vim-scripts/Pydiction'
-Plug 'vim-scripts/indentpython.vim'
-Plug 'scrooloose/syntastic'
+  " Colors
+  Plug 'altercation/vim-colors-solarized'
+  Plug 'jnurmine/Zenburn'
 
-"auto-completion stuff
-"Plug 'klen/python-mode'
-" Old name replaced by ycm-core/YouComplete
-"Plug 'Valloric/YouCompleteMe'
-"Plug 'klen/rope-vim'
-"Plug 'davidhalter/jedi-vim'
-Plug 'ervandew/supertab'
-""code folding
-"Plug 'tmhedberg/SimpylFold'
+  " Tags (better autotags than vim-autotag)
+  Plug 'ludovicchabant/vim-gutentags'
 
-function! BuildYCM(info)
-  " info is a dictionary with 3 fields
-  " - name:   name of the plugin
-  " - status: 'installed', 'updated', or 'unchanged'
-  " - force:  set on PlugInstall! or PlugUpdate!
-  if a:info.status == 'installed' || a:info.force
-    !./install.py --clangd-completer
-  endif
-endfunction
-
-"Plug 'ycm-core/YouCompleteMe', { 'do': function('BuildYCM') }
-Plug 'tpope/vim-surround'
-
-" Use release branch (recommended)
-Plug 'neoclide/coc.nvim', {'branch': 'release'}
-
-" Or build from source code by using npm
-"Plug 'neoclide/coc.nvim', {'branch': 'master', 'do': 'npm ci'}
-"
-Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
-Plug 'junegunn/fzf.vim'
-
-"Colors!!!
-Plug 'altercation/vim-colors-solarized'
-Plug 'jnurmine/Zenburn'
-
-"Powerline status bar
-"Plug 'Lokaltog/powerline', {'rtp': 'powerline/bindings/vim/'}
-
-" auto-tag for ctags
-Plug 'craigemery/vim-autotag'
-
-" Code commenting
-Plug 'tpope/vim-commentary'
-
-" All of your Plugins must be added before the following line
-"call vundle#end()            " required
-"filetype plugin indent on    " required
-" To ignore plugin indent changes, instead use:
-"filetype plugin on
-"
-" Brief help
-" :PluginList       - lists configured plugins
-" :PluginInstall    - installs plugins; append `!` to update or just :PluginUpdate
-" :PluginSearch foo - searches for foo; append `!` to refresh local cache
-" :PluginClean      - confirms removal of unused plugins; append `!` to auto-approve removal
-"
-" see :h vundle for more details or wiki for FAQ
-"
 " vim-plug help
 " :PlugInstall to install the plugins
 " :PlugUpdate to install or update the plugins
@@ -117,50 +39,93 @@ Plug 'tpope/vim-commentary'
 call plug#end()
 " Put your non-Plugin stuff after this line
 
-" syntastic
-set statusline+=%#warningmsg#
-set statusline+=%{SyntasticStatuslineFlag()}
-set statusline+=%*
+" ===================================================================
+"  CoC: auto-install & keep my extensions
+" ===================================================================
+" CoC will automatically install any missing extensions at startup
+" and keep them updated with :CocUpdate.
+" -------------------------------------------------------------------
 
-let g:syntastic_always_populate_loc_list = 1
-"let g:syntastic_auto_loc_list = 1
-let g:syntastic_check_on_open = 1
-let g:syntastic_check_on_wq = 0
+let g:coc_global_extensions = [
+      \ 'coc-pyright',
+      \ '@yaegassy/coc-ruff',
+      \ 'coc-json',
+      \ 'coc-yaml',
+      \ 'coc-tsserver',
+      \ 'coc-sh',
+      \ 'coc-snippets',
+      \ 'coc-html',
+      \ 'coc-css'
+      \ ]
 
 
-"omnicomplete default
-set omnifunc=syntaxcomplete#Complete
+" Enable filetype detection, plugins and indent rules
+filetype plugin indent on
 
-"highlight search
-set hls
-nnoremap <F6> :nohls<CR>
+" --- UI & editing ---
+set number
+set backspace=indent,eol,start
+set clipboard=unnamed
+set tabstop=4 softtabstop=4 shiftwidth=4 expandtab
 
-"set splitbelow
-"set splitright
+" --- Search behavior --------------------------------------------------------
 
-"split navigations
+set hlsearch        " Keep matches highlighted after searching (use :nohlsearch or <leader>h to clear)
+set incsearch       " Show matches dynamically as you type during / or ? searches
+set ignorecase      " Make searches case-insensitive by default
+set smartcase       " If search includes uppercase letters, make it case-sensitive
+
+" --- Window split behavior --------------------------------------------------
+
+set splitbelow      " New horizontal splits open below the current window
+set splitright      " New vertical splits open to the right of the current window
+
+" --- Editing safety & file history -----------------------------------------
+
+" Disable swap files (avoid .swp clutter)
+set noswapfile
+
+" Enable persistent undo (keeps history across sessions)
+set undofile
+set undodir=~/.vim/undo
+
+" Optional: enable simple backups (commented out)
+" set backup
+" set backupdir=~/.vim/backup
+
+" Create undo/backup dirs if missing (first-time setup)
+if !isdirectory(expand('~/.vim/undo'))
+  call mkdir(expand('~/.vim/undo'), 'p')
+endif
+if !isdirectory(expand('~/.vim/backup'))
+  call mkdir(expand('~/.vim/backup'), 'p')
+endif
+
+" --- Keymaps ---
+let mapleader=" "
+
+" Window navigation
 nnoremap <C-J> <C-W><C-J>
 nnoremap <C-K> <C-W><C-K>
 nnoremap <C-L> <C-W><C-L>
 nnoremap <C-H> <C-W><C-H>
 
-" Enable folding
-"set foldmethod=indent
-"set foldlevel=99
+" --- Buffer navigation (Tab / Shift-Tab) -----------------------------------
+nnoremap <silent> <Tab>   :bnext<CR>
+nnoremap <silent> <S-Tab> :bprevious<CR>
+nnoremap <silent> <leader>bn :bnext<CR>
+nnoremap <silent> <leader>bp :bprevious<CR>
 
-"folding options
-let g:SimpylFold_docstring_preview=1
+" Clear search highlight
+" nnoremap <F6> :nohlsearch<CR>
+nnoremap <leader>h :nohlsearch<CR>
 
-"autocomplete
-let g:ycm_autoclose_preview_window_after_completion=1
+" NERDTree
+nnoremap <C-n> :NERDTreeToggle<CR>
+let NERDTreeIgnore=['\.pyc$', '\~$']
+let g:nerdtree_tabs_open_on_gui_startup=0
 
-"custom keys
-let mapleader=" "
-map <leader>g  :YcmCompleter GoToDefinitionElseDeclaration<CR>
-"
-call togglebg#map("<F5>")
-
-"color schemes
+" --- Colors ---
 if has('gui_running')
   set background=dark
   colorscheme solarized
@@ -169,66 +134,11 @@ if has('gui_running')
   "colorscheme lucius
   "colorscheme badwolf
   "colorscheme molokai
+  set guifont=Monaco:h14
 else
-  colorscheme zenburn
+  "colorscheme zenburn
+  colorscheme solarized
 endif
-set guifont=Monaco:h14
-
-"filesystem options
-map <C-n> :NERDTreeToggle<CR>
-let NERDTreeIgnore=['\.pyc$', '\~$'] "ignore files in NERDTree
-let g:nerdtree_tabs_open_on_gui_startup=0
-
-"I don't like swap files
-set noswapfile
-
-"turn on numbering
-"set nu
-autocmd FileType python set nu
-
-"python with virtualenv support
-"py3 << EOF
-"import os
-"import sys
-"if 'VIRTUAL_ENV' in os.environ:
-"  project_base_dir = os.environ['VIRTUAL_ENV']
-"  sys.path.insert(0, project_base_dir)
-"  activate_this = os.path.join(project_base_dir, 'bin/activate_this.py')
-"  execfile(activate_this, dict(__file__=activate_this))
-"EOF
-
-"it would be nice to set tag files by the active virtualenv here
-":set tags=~/mytags "tags for ctags and taglist
-"omnicomplete
-autocmd FileType python set omnifunc=pythoncomplete#Complete
-
-set tabstop=4 softtabstop=4 shiftwidth=4 expandtab
-
-"------------Start Python PEP 8 stuff----------------
-" Number of spaces that a pre-existing tab is equal to.
-au BufRead,BufNewFile *py,*pyw,*.c,*.h set tabstop=4
-
-"spaces for indents
-au BufRead,BufNewFile *.py,*pyw set shiftwidth=4
-au BufRead,BufNewFile *.py,*.pyw set expandtab
-au BufRead,BufNewFile *.py set softtabstop=4
-
-" Use the below highlight group when displaying bad whitespace is desired.
-highlight BadWhitespace ctermbg=red guibg=red
-
-" Display tabs at the beginning of a line in Python mode as bad.
-au BufRead,BufNewFile *.py,*.pyw match BadWhitespace /^\t\+/
-" Make trailing whitespace be flagged as bad.
-au BufRead,BufNewFile *.py,*.pyw,*.c,*.h match BadWhitespace /\s\+$/
-
-" Wrap text after a certain number of characters
-au BufRead,BufNewFile *.py,*.pyw, set textwidth=100
-
-" Use UNIX (\n) line endings.
-au BufNewFile *.py,*.pyw,*.c,*.h set fileformat=unix
-
-" Set the default file encoding to UTF-8:
-set encoding=utf-8
 
 " For full syntax highlighting:
 let python_highlight_all=1
@@ -237,29 +147,171 @@ let python_highlight_all=1
 "syntax enable
 "syntax on
 
-" Keep indentation level from previous line:
-autocmd FileType python set autoindent
+" ========================================================================== "
+"  CoC keymaps (Vim .vimrc version)                                          "
+"  NOTE: keep this after your plugin setup and mapleader definition.         "
+" ========================================================================== "
 
-" make backspaces more powerfull
-set backspace=indent,eol,start
+" --- Go-to / references / hover -------------------------------------------
+nmap <silent> gd <Plug>(coc-definition)
+nmap <silent> gD <Plug>(coc-declaration)
+nmap <silent> gr <Plug>(coc-references)
+nmap <silent> gi <Plug>(coc-implementation)
+nmap <silent> gy <Plug>(coc-type-definition)
+nnoremap <silent> K :call CocActionAsync('doHover')<CR>
 
-"Folding based on indentation:
-"autocmd FileType python set foldmethod=indent
-"use space to open folds
-nnoremap <space> za 
-"----------Stop python PEP 8 stuff--------------
+" --- Completion behavior: confirm / cycle / dismiss ------------------------
+" Manual trigger (Ctrl-Space)
+inoremap <silent><expr> <C-Space> coc#refresh()
 
-"autocmd FileType yaml setlocal shiftwidth=2 tabstop=2 softtabstop=2
+" Smart Enter / Tab / Shift-Tab when popup visible
+inoremap <expr> <CR>    coc#pum#visible() ? coc#pum#confirm() : "\<CR>"
+inoremap <expr> <Tab>   coc#pum#visible() ? coc#pum#next(1)   : "\<Tab>"
+inoremap <expr> <S-Tab> coc#pum#visible() ? coc#pum#prev(1)   : "\<S-Tab>"
 
-"js stuff"
-autocmd FileType javascript setlocal shiftwidth=2 tabstop=2
+" Dismiss CoC popup manually (Ctrl-e) — leaves Copilot ghost alone
+inoremap <expr> <C-e> coc#pum#visible() ? coc#pum#cancel() : "\<C-e>"
 
-au BufNewFile,BufRead *.js,*.html,*.css,*.yaml set tabstop=2 softtabstop=2 shiftwidth=2
+" --- Rename / code actions / formatting -----------------------------------
+nmap <silent> <leader>rn <Plug>(coc-rename)
+nmap <silent> <leader>ca <Plug>(coc-codeaction)
+xmap <silent> <leader>f  <Plug>(coc-format-selected)
+nmap <silent> <leader>f  <Plug>(coc-format-selected)
 
-set complete+=kspell
-set clipboard=unnamed
+" --- Diagnostics: navigation + list ---------------------------------------
+nmap <silent> ]d <Plug>(coc-diagnostic-next)
+nmap <silent> [d <Plug>(coc-diagnostic-prev)
+nnoremap <silent> <leader>dn <Plug>(coc-diagnostic-next)
+nnoremap <silent> <leader>dp <Plug>(coc-diagnostic-prev)
+nnoremap <silent> <leader>de :CocDiagnostics<CR>
 
-" Automatically change pwd to that of current file
-set autochdir
+" --- Visibility toggles: inlay hints, diagnostics, suggestions -------------
+nnoremap <silent> <leader>ih :CocCommand document.toggleInlayHint<CR>
+nnoremap <silent> <leader>dg :call CocAction('diagnosticToggle')<CR>
+nnoremap <silent> <leader>db :call CocAction('diagnosticToggleBuffer')<CR>
+nnoremap <silent> <leader>cs :call CocAction('toggle', 'suggest')<CR>
 
-"autocmd Syntax markdown syn match markdownError "\w\@<=\w\@="
+" ===================================================================
+"  GitHub Copilot keymaps
+" ===================================================================
+let g:copilot_no_tab_map = v:true
+imap <silent><script><expr> <C-]> copilot#Accept("\<CR>")
+imap <silent> <C-\> <Plug>(copilot-dismiss)
+
+" Don't hide Copilot ghost text during completion popups
+let g:copilot_hide_during_completion = 0
+
+" --- Language-specific light touches ---
+" Python: keep it simple; CoC/linters will handle style
+augroup PyBasics
+  autocmd!
+  autocmd FileType python setlocal textwidth=100
+augroup END
+
+" JS/YAML: 2-space indents
+augroup TwoSpace
+  autocmd!
+  autocmd FileType javascript,yaml,html,css setlocal shiftwidth=2 tabstop=2 softtabstop=2
+augroup END
+
+" --- Gutentags defaults (works out of the box). Uncomment to tune ---
+" let g:gutentags_cache_dir = expand('~/.cache/gutentags')
+" let g:gutentags_ctags_extra_args = ['--fields=+niazS', '--extras=+q']
+
+
+" Only Python on save (leave global formatOnSave off)
+" In vimrc:
+" let g:coc_preferences = {'formatOnSave': v:false}
+" augroup CocRuffFmt
+"   autocmd!
+"   autocmd BufWritePre *.py silent! call CocAction('format')
+" augroup END
+
+" --- FZF integration --------------------------------------------------------
+" Requires: brew install fzf ripgrep
+" Adds fuzzy file, buffer, and text search commands and keymaps
+
+" Helper: determine project root (prefers Git; falls back to current dir)
+function! s:ProjectRoot()
+  let l:git = systemlist('git rev-parse --show-toplevel')[0]
+  return v:shell_error ? getcwd() : l:git
+endfunction
+
+" Command: open file picker from project root
+command! -nargs=0 ProjectFiles execute 'Files ' . fnameescape(<sid>ProjectRoot())
+
+" --- FZF keymaps ------------------------------------------------------------
+" (Space = <Leader>)
+
+" Fuzzy-find files from current working directory
+nnoremap <silent> <leader>ff :Files<CR>
+
+" Fuzzy-find files from project (Git) root
+nnoremap <silent> <leader>fp :ProjectFiles<CR>
+
+" Live grep entire project (requires ripgrep)
+nnoremap <silent> <leader>fg :Rg<CR>
+
+" Grep for the whole word under the cursor (exact match, like *)
+nnoremap <silent> <leader>fw :execute 'Rg -w ' . expand('<cword>')<CR>
+
+" Grep for any occurrence of the word (substring match, like g*)
+nnoremap <silent> <leader>fW :execute 'Rg ' . expand('<cword>')<CR>
+
+" List open buffers
+nnoremap <silent> <leader>fb :Buffers<CR>
+
+" Search Vim help tags
+nnoremap <silent> <leader>fh :Helptags<CR>
+
+" Reopen recent files (MRU + buffers)
+nnoremap <silent> <leader>fo :History<CR>
+
+" OPTIONAL: Rg using your last / search (from @/ register), as a literal string
+command! -nargs=0 RgLast execute 'Rg -F ' . shellescape(@/)
+nnoremap <silent> <leader>f/ :RgLast<CR>
+
+" --- FZF preview and Rg configuration ---------------------------------------
+" Toggle preview with Ctrl-/ inside FZF
+let g:fzf_preview_window = ['right:60%:hidden', 'ctrl-/']
+
+" Redefine :Rg to show hidden files but skip .git directory
+if executable('rg')
+  command! -nargs=* Rg call fzf#vim#grep(
+        \ 'rg --hidden --glob "!.git" --column --line-number --no-heading --color=always --smart-case '
+        \ . shellescape(<q-args>), 1, fzf#vim#with_preview(), 0)
+endif
+
+" --- FZF open-action cheat sheet --------------------------------------------
+" Inside any FZF picker:
+"   Enter   → open in current window
+"   Ctrl-v  → open in vertical split
+"   Ctrl-x  → open in horizontal split
+"   Ctrl-t  → open in new tab
+"   Ctrl-q  → send matches to quickfix list
+"   Ctrl-/  → toggle preview (if enabled above)
+
+
+" --- Dictionary and Spell completion --------------------------------------
+
+" Start with spell-checking disabled by default
+set nospell
+set spelllang=en_us
+
+" Add system dictionary if available (used for <C-x><C-k> completion)
+if filereadable('/usr/share/dict/words')
+  set dictionary+=/usr/share/dict/words
+endif
+
+" Optional: include dictionary & spell words in general <C-n>/<C-p> completion
+" set complete+=k   " include dictionary words
+" set complete+=s   " include spelling suggestions
+
+" --- Keybindings ----------------------------------------------------------
+" <Leader>ts    → toggle spell-checking on/off
+" <C-x><C-k>    → complete from dictionary
+" <C-x><C-s>    → complete from spell-check suggestions
+" <C-n>/<C-p>   → cycle through generic completions (if complete+=k,s are set)
+
+" Toggle spell-checking and echo current state
+nnoremap <leader>ts :set invspell<CR>:echo "spell=" . &spell<CR>
