@@ -115,6 +115,48 @@ return {
   -- Classic Copilot.vim (works great with CoC)
   { "github/copilot.vim" },
 
+  -- AI / code companion plugin
+  {
+    "olimorris/codecompanion.nvim",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "nvim-treesitter/nvim-treesitter",
+    },
+
+    -- Load only when used
+    cmd = {
+      "CodeCompanion",
+      "CodeCompanionChat",
+      "CodeCompanionCmd",
+      "CodeCompanionActions",
+    },
+
+    -- Keymaps here trigger lazy-load
+    keys = {
+      -- Chat buffer
+      { "<leader>cc", "<cmd>CodeCompanionChat<CR>",        desc = "CC: Chat" },
+      { "<leader>cC", "<cmd>CodeCompanionChat Toggle<CR>", desc = "CC: Toggle chat" },
+      { "<leader>ca", "<cmd>CodeCompanionActions<CR>",     desc = "CC: Action Palette" },
+
+      -- Inline assistant (acts on current buffer/visual selection)
+      { "<leader>ci", "<cmd>CodeCompanion<CR>",            desc = "CC: Inline (prompt after)", mode = { "n", "v" } },
+
+      -- Command generator
+      { "<leader>c:", "<cmd>CodeCompanionCmd<CR>",         desc = "CC: Generate command" },
+
+      -- Add selected text to the open chat buffer
+      { "<leader>cA", ":CodeCompanionChat Add<CR>",   desc = "CC: Add selection to chat", mode = "v" },
+    },
+
+    -- Keep opts minimal; add adapters later once it’s working
+    opts = {
+      strategies = {
+        chat = { adapter = "copilot" },
+        inline = { adapter = "copilot" },
+      },
+    }
+  }
+
   -- (Optional later)
   -- { "stevearc/conform.nvim" },   -- formatter runner
   -- { "mfussenegger/nvim-lint" },  -- lightweight linter runner
