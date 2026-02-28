@@ -31,6 +31,17 @@ return {
     end,
   },
 
+  -- Bufferline (top buffer tabs)
+  {
+    "akinsho/bufferline.nvim",
+    event = "VeryLazy",
+    version = "*",
+    dependencies = { "nvim-tree/nvim-web-devicons" },
+    config = function()
+      require("bufferline").setup({})
+    end,
+  },
+
   -- Treesitter (syntax/indent/folds)
   { "nvim-treesitter/nvim-treesitter", build = ":TSUpdate", event = { "BufReadPost", "BufNewFile" } },
 
@@ -46,19 +57,6 @@ return {
         build = "make",
         cond = function() return vim.fn.executable("make") == 1 end,
       },
-    },
-    -- Lazy-load when you hit your mapped keys
-    keys = {
-      { "<leader>ff", mode = "n" },
-      { "<leader>fp", mode = "n" },
-      { "<leader>fo", mode = "n" },
-      { "<leader>fr", mode = "n" },
-      { "<leader>fg", mode = "n" },
-      { "<leader>fw", mode = "n" },
-      { "<leader>fW", mode = "n" },
-      { "<leader>f/", mode = "n" },
-      { "<leader>fb", mode = "n" },
-      { "<leader>fh", mode = "n" },
     },
   },
 

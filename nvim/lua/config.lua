@@ -112,6 +112,11 @@ map("n", "<S-Tab>", ":bprevious<CR>", { silent = true, desc = "Previous buffer" 
 -- Optional fallbacks if <S-Tab> isn’t recognized by your terminal
 map("n", "<leader>bn", ":bnext<CR>",     { silent = true, desc = "Next buffer (leader)" })
 map("n", "<leader>bp", ":bprevious<CR>", { silent = true, desc = "Prev buffer (leader)" })
+-- Close current buffer (Bufferline-aware; keeps layout intact)
+map("n", "<leader>bd", "<cmd>bdelete<CR>", { silent = true, desc = "Delete buffer" })
+
+-- Pick a buffer to close using Bufferline's visual selector
+map("n", "<leader>bD", "<cmd>BufferLinePickClose<CR>", { desc = "Pick buffer to close" })
 
 -- ========================================================================== --
 --  Telescope Integration (FZF-equivalent behavior)
@@ -235,7 +240,7 @@ map("i", "<C-e>",
 -- ========================================================================== --
 map("n", "<leader>rn", "<Plug>(coc-rename)",          { desc = "CoC: rename" })
 map("n", "<leader>ca", "<Plug>(coc-codeaction)",      { desc = "CoC: code action" })
-map({ "n", "x" }, "<leader>f", "<Plug>(coc-format-selected)", { desc = "CoC: format range" })
+map({ "n", "x" }, "<leader>cf", "<Plug>(coc-format-selected)", { desc = "CoC: format range" })
 
 -- ========================================================================== --
 --  Diagnostics: navigation + list
