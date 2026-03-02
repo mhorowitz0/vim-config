@@ -38,7 +38,11 @@ return {
     version = "*",
     dependencies = { "nvim-tree/nvim-web-devicons" },
     config = function()
-      require("bufferline").setup({})
+      require("bufferline").setup({
+        options = {
+          numbers = "buffer_id",  -- show actual buffer numbers (for :b3 etc)
+        },
+      })
     end,
   },
 

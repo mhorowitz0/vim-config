@@ -16,6 +16,9 @@ o.number = true
 wo.relativenumber = false
 wo.signcolumn = "yes"
 
+-- Enable mouse support (clickable bufferline tabs, etc.)
+vim.opt.mouse = "a"
+
 -- Search behavior
 o.ignorecase = true
 o.smartcase  = true
@@ -112,11 +115,19 @@ map("n", "<S-Tab>", ":bprevious<CR>", { silent = true, desc = "Previous buffer" 
 -- Optional fallbacks if <S-Tab> isn’t recognized by your terminal
 map("n", "<leader>bn", ":bnext<CR>",     { silent = true, desc = "Next buffer (leader)" })
 map("n", "<leader>bp", ":bprevious<CR>", { silent = true, desc = "Prev buffer (leader)" })
+
 -- Close current buffer (Bufferline-aware; keeps layout intact)
 map("n", "<leader>bd", "<cmd>bdelete<CR>", { silent = true, desc = "Delete buffer" })
 
 -- Pick a buffer to close using Bufferline's visual selector
 map("n", "<leader>bD", "<cmd>BufferLinePickClose<CR>", { desc = "Pick buffer to close" })
+
+-- Jump directly to Nth buffer in bufferline with <leader>1..9
+for i = 1, 9 do
+  map("n", "<leader>" .. i, function()
+    require("bufferline").go_to_buffer(i, true)
+  end, { desc = "Go to buffer " .. i })
+end
 
 -- ========================================================================== --
 --  Git (vim-fugitive): smarter vertical diff / close                         --

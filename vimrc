@@ -120,6 +120,11 @@ nnoremap <silent> <S-Tab> :bprevious<CR>
 nnoremap <silent> <leader>bn :bnext<CR>
 nnoremap <silent> <leader>bp :bprevious<CR>
 
+" Jump directly to buffer N using <leader>1..9
+for i in range(1, 9)
+  execute 'nnoremap <silent> <leader>' . i . ' :buffer ' . i . '<CR>'
+endfor
+
 " Close current buffer (keep Vim running; works nicely with airline bufferline)
 nnoremap <silent> <leader>bd :bdelete<CR>
 
@@ -289,6 +294,9 @@ let g:airline#extensions#tabline#enabled = 1
 " Show buffers, not Vim's actual tab pages, in the tabline
 let g:airline#extensions#tabline#show_buffers = 1
 let g:airline#extensions#tabline#show_tabs    = 0
+
+" Show buffer numbers in the tabline (so you can use :b<number>)
+let g:airline#extensions#tabline#buffer_nr_show = 1
 
 " Nicer buffer labels: only the tail of the path, disambiguated when needed
 let g:airline#extensions#tabline#formatter = 'unique_tail_improved'
