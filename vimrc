@@ -31,6 +31,10 @@ call plug#begin()
   " Tags (better autotags than vim-autotag)
   Plug 'ludovicchabant/vim-gutentags'
 
+  " Statusline + bufferline (airline)
+  Plug 'vim-airline/vim-airline'
+  Plug 'vim-airline/vim-airline-themes'
+
 " vim-plug help
 " :PlugInstall to install the plugins
 " :PlugUpdate to install or update the plugins
@@ -116,6 +120,137 @@ nnoremap <silent> <S-Tab> :bprevious<CR>
 nnoremap <silent> <leader>bn :bnext<CR>
 nnoremap <silent> <leader>bp :bprevious<CR>
 
+" Close current buffer (keep Vim running; works nicely with airline bufferline)
+nnoremap <silent> <leader>bd :bdelete<CR>
+
+" FZF-powered buffer picker that deletes selected buffer
+command! BD call fzf#run({
+      \ 'source':  map(getbufinfo({'buflisted':1}), {_,v -> v.bufnr . ' ' . v.name}),
+      \ 'sink':    function('s:bd_sink'),
+      \ 'down':    '40%' })
+
+function! s:bd_sink(line)
+  let l:bnr = split(a:line)[0]
+  execute 'bdelete ' . l:bnr
+endfunction
+
+nnoremap <leader>bD :BD<CR>
+
+" --- Diff helper: identify fugitive buffers --------------------------------
+function! s:IsFugitiveBuffer(bufnr) abort
+  let l:name = bufname(a:bufnr)
+  " Fugitive buffers use a fugitive:// scheme
+  return l:name =~# '^fugitive://'
+endfunction
+
+" --- Diff helper: close the *fugitive* side, keep the local file -----------"
+function! s:CloseOtherDiffBuffer() abort
+  " If we're not in diff mode at all, do nothing."
+  if !&diff
+    return
+  endif
+
+  let l:curwin  = winnr()
+  let l:curbuf  = bufnr('%')
+  let l:other_buf = -1
+  let l:other_win = -1
+
+  " Find another window that's also in diff mode but shows a different buffer
+  for l:w in range(1, winnr('$'))
+    execute l:w . 'wincmd w'
+    if &diff && bufnr('%') != l:curbuf
+      let l:other_buf = bufnr('%')
+      let l:other_win = l:w
+      break
+    endif
+  endfor
+
+  " Go back to the original window
+  execute l:curwin . 'wincmd w'
+
+  " If we didn't find a distinct other diff buffer, do nothing
+  if l:other_buf == -1
+    return
+  endif
+
+  let l:cur_is_fug   = s:IsFugitiveBuffer(l:curbuf)
+  let l:other_is_fug = s:IsFugitiveBuffer(l:other_buf)
+
+  " Decide which buffer to keep:
+  "  - If exactly one is fugitive, delete that one.
+  "  - Otherwise, keep the current buffer and delete the other.
+  if l:cur_is_fug && !l:other_is_fug
+    " We are on the fugitive side; keep the other (local) buffer
+    " Delete current buffer (and its window), then ensure local is shown
+    execute l:curwin . 'wincmd w'
+    execute 'bdelete ' . l:curbuf
+    execute 'buffer ' . l:other_buf
+  elseif l:other_is_fug && !l:cur_is_fug
+    " Other side is fugitive; keep current (local) buffer
+    execute l:other_win . 'wincmd w'
+    execute 'bdelete ' . l:other_buf
+    execute 'buffer ' . l:curbuf
+  else
+    " Fallback: ambiguity; keep current buffer, delete the other
+    execute l:other_win . 'wincmd w'
+    execute 'bdelete ' . l:other_buf
+    execute 'buffer ' . l:curbuf
+  endif
+endfunction
+
+" --- Diff helper: vertical Gdiffsplit but keep cursor on original buffer ---
+function! s:GitDiffVerticalKeepLocal() abort
+  " Remember the buffer we started in (usually the local working tree file)
+  let l:origbuf = bufnr('%')
+
+  " Open a vertical diff
+  execute 'vertical Gdiffsplit'
+
+  " If diff isn't actually on, bail out gracefully
+  if !&diff
+    return
+  endif
+
+  " Jump back to the window showing the original buffer (local file)
+  for l:w in range(1, winnr('$'))
+    execute l:w . 'wincmd w'
+    if bufnr('%') == l:origbuf
+      break
+    endif
+  endfor
+endfunction
+
+" --- Git (vim-fugitive) ----------------------------------------------------
+" Status: open fugitive status window
+nnoremap <silent> <leader>gs :G<CR>
+
+" Diff current file in a *vertical* split (forces vertical)
+" nnoremap <silent> <leader>gd :vertical Gdiffsplit<CR>
+
+" Diff current file in a *vertical* split, but keep cursor in the original
+" (local) buffer window after the split.
+nnoremap <silent> <leader>gd :call <SID>GitDiffVerticalKeepLocal()<CR>
+
+" Smart quit: delete the fugitive/old-revision side and keep the local file,
+" regardless of which side you're on. Outside diff mode, just quits this window.
+nnoremap <silent> <leader>gq :call <SID>CloseOtherDiffBuffer()<CR>
+
+" Hard reset: turn off diff everywhere and equalize windows
+nnoremap <silent> <leader>gQ :diffoff!<CR>:wincmd =<CR>
+
+" Equalize all window sizes (handy after diffs or splits)
+nnoremap <silent> <leader>g= :wincmd =<CR>
+
+" Flip diff sides: rotate window layout (swap left/right or top/bottom),
+" move cursor to the opposite pane, and re-equalize window sizes.
+nnoremap <silent> <leader>gx <C-w>r<C-w>w<C-w>=
+
+" Auto-equalize window sizes when working in diff mode
+augroup DiffAutoEqualize
+  autocmd!
+  autocmd WinEnter * if &diff | wincmd = | endif
+augroup END
+
 " Clear search highlight
 " nnoremap <F6> :nohlsearch<CR>
 nnoremap <leader>h :nohlsearch<CR>
@@ -146,6 +281,23 @@ let python_highlight_all=1
 " safer to use enable than on
 "syntax enable
 "syntax on
+
+" --- Airline: statusline + bufferline/tabline ------------------------------
+" Enable the tabline extension so buffers show as a top "bufferline"
+let g:airline#extensions#tabline#enabled = 1
+
+" Show buffers, not Vim's actual tab pages, in the tabline
+let g:airline#extensions#tabline#show_buffers = 1
+let g:airline#extensions#tabline#show_tabs    = 0
+
+" Nicer buffer labels: only the tail of the path, disambiguated when needed
+let g:airline#extensions#tabline#formatter = 'unique_tail_improved'
+
+" Optional: use a theme that matches your colorscheme (you have solarized)
+let g:airline_theme = 'solarized'
+
+" Optional: powerline-style glyphs (if your font supports them)
+let g:airline_powerline_fonts = 1
 
 " ========================================================================== "
 "  CoC keymaps (Vim .vimrc version)                                          "

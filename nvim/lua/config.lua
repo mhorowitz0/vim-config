@@ -119,6 +119,128 @@ map("n", "<leader>bd", "<cmd>bdelete<CR>", { silent = true, desc = "Delete buffe
 map("n", "<leader>bD", "<cmd>BufferLinePickClose<CR>", { desc = "Pick buffer to close" })
 
 -- ========================================================================== --
+--  Git (vim-fugitive): smarter vertical diff / close                         --
+-- ========================================================================== --
+
+-- Helper: detect fugitive buffers (old revisions like fugitive://...)
+local function is_fugitive_buffer(bufnr)
+  local name = vim.api.nvim_buf_get_name(bufnr)
+  return name:match("^fugitive://") ~= nil
+end
+
+-- Helper: vertical Gdiffsplit but keep cursor on the original (local) buffer
+local function git_diff_vertical_keep_local()
+  local orig_buf = vim.api.nvim_get_current_buf()
+
+  vim.cmd("vertical Gdiffsplit")
+
+  -- If diff didn't actually activate (e.g. error), bail
+  if not vim.wo.diff then
+    return
+  end
+
+  -- Jump back to the window showing the original buffer (local file)
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    vim.api.nvim_set_current_win(win)
+    if vim.api.nvim_win_get_buf(win) == orig_buf then
+      break
+    end
+  end
+end
+
+-- Helper: close the *fugitive* side of a diff, keep the local file
+local function close_other_diff_buffer()
+  -- Only act in diff mode; outside, do nothing
+  if not vim.wo.diff then
+    return
+  end
+
+  local cur_win  = vim.api.nvim_get_current_win()
+  local cur_buf  = vim.api.nvim_win_get_buf(cur_win)
+  local other_win, other_buf
+
+  -- Find another window in diff mode that shows a different buffer
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if win ~= cur_win then
+      vim.api.nvim_set_current_win(win)
+      if vim.wo.diff then
+        local buf = vim.api.nvim_win_get_buf(win)
+        if buf ~= cur_buf then
+          other_win, other_buf = win, buf
+          break
+        end
+      end
+    end
+  end
+
+  -- Go back to the original window
+  vim.api.nvim_set_current_win(cur_win)
+
+  -- If we didn't find a distinct other diff buffer, do nothing
+  if not other_buf then
+    return
+  end
+
+  local cur_is_fug   = is_fugitive_buffer(cur_buf)
+  local other_is_fug = is_fugitive_buffer(other_buf)
+
+  -- Decide which buffer to keep:
+  --  - If exactly one is fugitive, delete that one.
+  --  - Otherwise, keep the current buffer and delete the other.
+  if cur_is_fug and not other_is_fug then
+    -- We are on the fugitive side; keep the other (local) buffer
+    vim.api.nvim_set_current_win(cur_win)
+    vim.api.nvim_buf_delete(cur_buf, { force = false })
+    vim.api.nvim_win_set_buf(cur_win, other_buf)
+  elseif other_is_fug and not cur_is_fug then
+    -- Other side is fugitive; keep current (local) buffer
+    vim.api.nvim_set_current_win(other_win)
+    vim.api.nvim_buf_delete(other_buf, { force = false })
+    vim.api.nvim_set_current_win(cur_win)
+  else
+    -- Fallback: ambiguity; keep current buffer, delete the other
+    vim.api.nvim_set_current_win(other_win)
+    vim.api.nvim_buf_delete(other_buf, { force = false })
+    vim.api.nvim_set_current_win(cur_win)
+  end
+end
+
+-- Git status
+map("n", "<leader>gs", "<cmd>G<CR>", { desc = "Git status (Fugitive)" })
+
+-- Diff current file in a *vertical* split, but keep cursor in the original
+-- (local) buffer window after the split.
+map("n", "<leader>gd", git_diff_vertical_keep_local, { desc = "Git diff (vertical, keep local)" })
+
+-- Smart quit: delete the fugitive/old-revision side and keep the local file,
+-- regardless of which side you're on. Outside diff mode, does nothing.
+map("n", "<leader>gq", close_other_diff_buffer, { desc = "Git diff: close fugitive side" })
+
+-- Hard reset: turn off diff everywhere and equalize windows
+map("n", "<leader>gQ", "<cmd>diffoff!<CR><C-w>=", { silent = true, desc = "Diff off + equalize" })
+
+-- Equalize all window sizes (handy after diffs or splits)
+map("n", "<leader>g=", "<C-w>=", { silent = true, desc = "Equalize window sizes" })
+
+-- Flip diff sides: rotate window layout (swap left/right or top/bottom),
+-- move cursor to the opposite pane, and re-equalize window sizes.
+map("n", "<leader>gx", "<C-w>r<C-w>w<C-w>=", {
+  silent = true,
+  desc = "Flip diff sides (swap panes, move cursor, equalize)",
+})
+
+-- Auto-equalize window sizes when working in diff mode
+local diff_group = vim.api.nvim_create_augroup("DiffAutoEqualize", { clear = true })
+vim.api.nvim_create_autocmd("WinEnter", {
+  group = diff_group,
+  callback = function()
+    if vim.wo.diff then
+      vim.cmd("wincmd =")
+    end
+  end,
+})
+
+-- ========================================================================== --
 --  Telescope Integration (FZF-equivalent behavior)
 -- ========================================================================== --
 
