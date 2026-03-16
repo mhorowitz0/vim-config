@@ -159,8 +159,200 @@ local function git_diff_vertical_keep_local()
   end
 end
 
+-- Review helper: live session state for the multi-file diff walk.
+local git_review = {
+  root = nil,
+  current_file = nil,
+}
+
+local close_other_diff_buffer
+
+-- Review helper: prefer Fugitive's worktree, fall back to git directly.
+local function git_root_for_buffer()
+  local file = vim.api.nvim_buf_get_name(0)
+  local probe = file ~= "" and file or vim.loop.cwd()
+
+  if vim.fn.exists("*FugitiveWorkTree") == 1 then
+    local ok, fugitive_root = pcall(vim.fn.FugitiveWorkTree, probe)
+    if ok and type(fugitive_root) == "string" and fugitive_root ~= "" then
+      return vim.fs.normalize(fugitive_root)
+    end
+  end
+
+  local dir = vim.fn.isdirectory(probe) == 1 and probe or vim.fn.fnamemodify(probe, ":h")
+  local root = vim.fn.systemlist({ "git", "-C", dir, "rev-parse", "--show-toplevel" })[1]
+  if vim.v.shell_error ~= 0 or not root or root == "" then
+    return nil
+  end
+
+  return root
+end
+
+-- Review helper: collect changed files from git status porcelain output.
+local function changed_files(root)
+  local files, seen = {}, {}
+  local raw = vim.fn.system({ "git", "-C", root, "status", "--porcelain", "-z" })
+
+  if vim.v.shell_error ~= 0 then
+    return files
+  end
+
+  local separator = raw:find("\0", 1, true) and "\0" or "\1"
+  local entries = vim.split(raw, separator, { plain = true, trimempty = true })
+  local i = 1
+
+  while i <= #entries do
+    local entry = entries[i]
+    local status = entry:sub(1, 2)
+    local file = entry:sub(4)
+
+    if status == "??" then
+      i = i + 1
+      goto continue
+    end
+    if status:sub(2, 2) == " " then
+      i = i + 1
+      goto continue
+    end
+
+    if status:find("R", 1, true) or status:find("C", 1, true) then
+      i = i + 1
+      if i > #entries then
+        break
+      end
+      file = entries[i]
+    end
+
+    if file ~= "" and not seen[file] then
+      local path = vim.fs.normalize(root .. "/" .. file)
+      if vim.fn.filereadable(path) == 1 then
+        seen[file] = true
+        table.insert(files, file)
+      end
+    end
+
+    i = i + 1
+    ::continue::
+  end
+
+  return files
+end
+
+-- Review helper: drop prior review buffers once they are no longer visible.
+local function cleanup_review_buffer(bufnr)
+  if not bufnr or bufnr <= 0 or not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+
+  if vim.bo[bufnr].modified or vim.fn.bufwinid(bufnr) ~= -1 then
+    return
+  end
+
+  pcall(vim.api.nvim_buf_delete, bufnr, { force = false })
+end
+
+-- Review helper: match the live review position against fresh git state.
+local function find_review_index(files, root)
+  local candidates = {}
+
+  if git_review.current_file and git_review.current_file ~= "" then
+    table.insert(candidates, vim.fs.normalize(root .. "/" .. git_review.current_file))
+  end
+
+  local buffer_name = vim.api.nvim_buf_get_name(0)
+  if buffer_name ~= "" then
+    table.insert(candidates, vim.fs.normalize(buffer_name))
+  end
+
+  for _, target in ipairs(candidates) do
+    for i, file in ipairs(files) do
+      if vim.fs.normalize(root .. "/" .. file) == target then
+        return i
+      end
+    end
+  end
+
+  return 1
+end
+
+-- Review helper: show current position in the review walk.
+local function echo_review_position(files, index)
+  if not files[index] then
+    return
+  end
+
+  vim.notify(
+    string.format("Git review %d/%d: %s", index, #files, files[index]),
+    vim.log.levels.INFO,
+    { title = "Fugitive review" }
+  )
+end
+
+-- Review helper: open the next file, diff it, and clean up the last one.
+local function open_git_review_at(files, index)
+  if not git_review.root or not files[index] then
+    return
+  end
+
+  local old_buf = vim.api.nvim_get_current_buf()
+  local target_file = files[index]
+  local target = vim.fs.normalize(git_review.root .. "/" .. target_file)
+
+  close_other_diff_buffer()
+  vim.cmd.edit(vim.fn.fnameescape(target))
+
+  git_review.current_file = target_file
+  git_diff_vertical_keep_local()
+
+  if old_buf ~= vim.api.nvim_get_current_buf() then
+    cleanup_review_buffer(old_buf)
+  end
+
+  echo_review_position(files, index)
+end
+
+-- Review helper: start a live multi-file git diff session.
+local function start_git_review()
+  local root = git_root_for_buffer()
+  if not root then
+    vim.notify("Git review: current buffer is not in a git worktree", vim.log.levels.WARN)
+    return
+  end
+
+  local files = changed_files(root)
+  if #files == 0 then
+    vim.notify("Git review: no changed files", vim.log.levels.INFO)
+    return
+  end
+
+  git_review = { root = root, current_file = nil }
+  local index = find_review_index(files, root)
+  open_git_review_at(files, index)
+end
+
+-- Review helper: move forward or backward through the current change set.
+local function git_review_step(delta)
+  local root = git_review.root or git_root_for_buffer()
+  if not root then
+    vim.notify("Git review: current buffer is not in a git worktree", vim.log.levels.WARN)
+    return
+  end
+
+  local files = changed_files(root)
+  if #files == 0 then
+    git_review = { root = root, current_file = nil }
+    vim.notify("Git review: no changed files", vim.log.levels.INFO)
+    return
+  end
+
+  git_review.root = root
+  local index = find_review_index(files, root)
+  local next_index = ((index - 1 + delta) % #files) + 1
+  open_git_review_at(files, next_index)
+end
+
 -- Helper: close the *fugitive* side of a diff, keep the local file
-local function close_other_diff_buffer()
+close_other_diff_buffer = function()
   -- Only act in diff mode; outside, do nothing
   if not vim.wo.diff then
     return
@@ -222,6 +414,20 @@ map("n", "<leader>gs", "<cmd>G<CR>", { desc = "Git status (Fugitive)" })
 -- Diff current file in a *vertical* split, but keep cursor in the original
 -- (local) buffer window after the split.
 map("n", "<leader>gd", git_diff_vertical_keep_local, { desc = "Git diff (vertical, keep local)" })
+
+-- Multi-file git review session.
+-- Start the live review session at the current changed file (or first changed file).
+map("n", "<leader>gD", start_git_review, { desc = "Git diff review (current changed file)" })
+
+-- Jump to the next changed file and open its vertical Fugitive diff.
+map("n", "<leader>gn", function()
+  git_review_step(1)
+end, { desc = "Git diff review: next file" })
+
+-- Jump to the previous changed file and open its vertical Fugitive diff.
+map("n", "<leader>gp", function()
+  git_review_step(-1)
+end, { desc = "Git diff review: previous file" })
 
 -- Smart quit: delete the fugitive/old-revision side and keep the local file,
 -- regardless of which side you're on. Outside diff mode, does nothing.

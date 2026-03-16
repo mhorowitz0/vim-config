@@ -225,6 +225,172 @@ function! s:GitDiffVerticalKeepLocal() abort
   endfor
 endfunction
 
+" --- Git review helper: live session state ---------------------------------
+let s:git_review = {'root': '', 'current_file': ''}
+
+" --- Git review helper: prefer Fugitive root, fallback to git --------------
+function! s:GitRootForBuffer() abort
+  let l:file = expand('%:p')
+  let l:probe = empty(l:file) ? getcwd() : l:file
+
+  if exists('*FugitiveWorkTree')
+    let l:fugitive_root = FugitiveWorkTree(l:probe)
+    if type(l:fugitive_root) == type('') && !empty(l:fugitive_root)
+      return simplify(l:fugitive_root)
+    endif
+  endif
+
+  let l:dir = isdirectory(l:probe) ? l:probe : fnamemodify(l:probe, ':h')
+  let l:root = systemlist('git -C ' . shellescape(l:dir) . ' rev-parse --show-toplevel')
+  return v:shell_error || empty(l:root) ? '' : l:root[0]
+endfunction
+
+" --- Git review helper: changed files from porcelain status ----------------
+function! s:ChangedFiles(root) abort
+  let l:files = []
+  let l:lines = systemlist('git -C ' . shellescape(a:root) . ' status --porcelain')
+  if v:shell_error
+    return l:files
+  endif
+
+  for l:entry in l:lines
+    if empty(l:entry)
+      continue
+    endif
+
+    let l:status = strpart(l:entry, 0, 2)
+    if l:status ==# '??'
+      continue
+    endif
+    if l:status[1] ==# ' '
+      continue
+    endif
+
+    let l:file = strpart(l:entry, 3)
+    if l:file =~# ' -> '
+      let l:file = matchstr(l:file, '-> \zs.*$')
+    endif
+
+    if empty(l:file)
+      continue
+    endif
+
+    let l:path = simplify(a:root . '/' . l:file)
+    if filereadable(l:path) && index(l:files, l:file) < 0
+      call add(l:files, l:file)
+    endif
+  endfor
+
+  return l:files
+endfunction
+
+" --- Git review helper: cleanup hidden review buffers ----------------------
+function! s:CleanupReviewBuffer(bufnr) abort
+  if a:bufnr <= 0 || !bufexists(a:bufnr)
+    return
+  endif
+
+  if getbufvar(a:bufnr, '&modified') || bufwinnr(a:bufnr) != -1
+    return
+  endif
+
+  execute 'bdelete ' . a:bufnr
+endfunction
+
+" --- Git review helper: find current file in the live review set -----------
+function! s:FindReviewIndex(files, root) abort
+  let l:candidates = []
+  if !empty(s:git_review.current_file)
+    call add(l:candidates, simplify(a:root . '/' . s:git_review.current_file))
+  endif
+  let l:buffer_path = expand('%:p')
+  if !empty(l:buffer_path)
+    call add(l:candidates, simplify(fnamemodify(l:buffer_path, ':p')))
+  endif
+
+  for l:target in l:candidates
+    for l:i in range(0, len(a:files) - 1)
+      if simplify(a:root . '/' . a:files[l:i]) ==# l:target
+        return l:i
+      endif
+    endfor
+  endfor
+
+  return 0
+endfunction
+
+" --- Git review helper: echo current review position -----------------------
+function! s:EchoReviewPosition(files, index) abort
+  if empty(a:files) || a:index < 0 || a:index >= len(a:files)
+    return
+  endif
+
+  echo printf('Git review %d/%d: %s', a:index + 1, len(a:files), a:files[a:index])
+endfunction
+
+" --- Git review helper: open file, diff it, and cleanup prior view ---------
+function! s:OpenGitReviewAt(files, index) abort
+  if empty(a:files) || a:index < 0 || a:index >= len(a:files)
+    return
+  endif
+
+  let l:old_buf = bufnr('%')
+  let l:target_file = a:files[a:index]
+  let l:target = simplify(s:git_review.root . '/' . l:target_file)
+
+  call s:CloseOtherDiffBuffer()
+  execute 'edit ' . fnameescape(l:target)
+
+  let s:git_review.current_file = l:target_file
+  call s:GitDiffVerticalKeepLocal()
+
+  if l:old_buf != bufnr('%')
+    call s:CleanupReviewBuffer(l:old_buf)
+  endif
+
+  call s:EchoReviewPosition(a:files, a:index)
+endfunction
+
+" --- Git review helper: start a live multi-file diff session ---------------
+function! s:StartGitReview() abort
+  let l:root = s:GitRootForBuffer()
+  if empty(l:root)
+    echo 'Git review: current buffer is not in a git worktree'
+    return
+  endif
+
+  let l:files = s:ChangedFiles(l:root)
+  if empty(l:files)
+    echo 'Git review: no changed files'
+    return
+  endif
+
+  let s:git_review = {'root': l:root, 'current_file': ''}
+  let l:index = s:FindReviewIndex(l:files, l:root)
+  call s:OpenGitReviewAt(l:files, l:index)
+endfunction
+
+" --- Git review helper: step through the current changed-file set ----------
+function! s:GitReviewStep(delta) abort
+  let l:root = empty(s:git_review.root) ? s:GitRootForBuffer() : s:git_review.root
+  if empty(l:root)
+    echo 'Git review: current buffer is not in a git worktree'
+    return
+  endif
+
+  let l:files = s:ChangedFiles(l:root)
+  if empty(l:files)
+    let s:git_review = {'root': l:root, 'current_file': ''}
+    echo 'Git review: no changed files'
+    return
+  endif
+
+  let s:git_review.root = l:root
+  let l:index = s:FindReviewIndex(l:files, l:root)
+  let l:next = (l:index + a:delta + len(l:files)) % len(l:files)
+  call s:OpenGitReviewAt(l:files, l:next)
+endfunction
+
 " --- Git (vim-fugitive) ----------------------------------------------------
 " Status: open fugitive status window
 nnoremap <silent> <leader>gs :G<CR>
@@ -235,6 +401,16 @@ nnoremap <silent> <leader>gs :G<CR>
 " Diff current file in a *vertical* split, but keep cursor in the original
 " (local) buffer window after the split.
 nnoremap <silent> <leader>gd :call <SID>GitDiffVerticalKeepLocal()<CR>
+
+" Multi-file git review session.
+" Start the live review session at the current changed file (or first changed file).
+nnoremap <silent> <leader>gD :call <SID>StartGitReview()<CR>
+
+" Jump to the next changed file and open its vertical Fugitive diff.
+nnoremap <silent> <leader>gn :call <SID>GitReviewStep(1)<CR>
+
+" Jump to the previous changed file and open its vertical Fugitive diff.
+nnoremap <silent> <leader>gp :call <SID>GitReviewStep(-1)<CR>
 
 " Smart quit: delete the fugitive/old-revision side and keep the local file,
 " regardless of which side you're on. Outside diff mode, just quits this window.
